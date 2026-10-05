@@ -13,7 +13,8 @@
       --text-title: #f0f6fc;
       --text-muted: #8b949e;
       --accent: #58a6ff;
-      --tag-bg: #1f2937;
+      --badge-bg: #238636;
+      --badge-text: #ffffff;
     }
 
     * {
@@ -31,7 +32,7 @@
     }
 
     .container {
-      max-width: 900px;
+      max-width: 960px;
       margin: 0 auto;
     }
 
@@ -42,7 +43,7 @@
     }
 
     header h1 {
-      font-size: 2rem;
+      font-size: 2.2rem;
       color: var(--text-title);
       margin-bottom: 0.5rem;
     }
@@ -56,14 +57,14 @@
       display: flex;
       gap: 0.5rem;
       flex-wrap: wrap;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.75rem;
     }
 
     .filter-btn {
       background: var(--card-bg);
       color: var(--text-muted);
       border: 1px solid var(--border);
-      padding: 0.35rem 0.8rem;
+      padding: 0.4rem 0.9rem;
       border-radius: 20px;
       cursor: pointer;
       font-size: 0.85rem;
@@ -78,7 +79,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
       gap: 1.25rem;
     }
 
@@ -98,9 +99,16 @@
       border-color: #8b949e;
     }
 
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
     .card h3 {
       font-size: 1.15rem;
-      margin-bottom: 0.5rem;
     }
 
     .card h3 a {
@@ -112,11 +120,21 @@
       text-decoration: underline;
     }
 
+    .badge-live {
+      font-size: 0.7rem;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      padding: 0.15rem 0.45rem;
+      border-radius: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
     .card p {
       color: var(--text-muted);
       font-size: 0.9rem;
       flex-grow: 1;
-      margin-bottom: 1rem;
+      margin-bottom: 1.2rem;
     }
 
     .meta {
@@ -125,6 +143,8 @@
       gap: 0.75rem;
       font-size: 0.8rem;
       color: var(--text-muted);
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .lang {
@@ -134,14 +154,20 @@
 
     .links {
       display: flex;
-      gap: 0.75rem;
+      gap: 1rem;
       margin-top: 0.75rem;
+      font-size: 0.85rem;
     }
 
-    .links a {
+    .links a.primary-link {
       color: var(--accent);
+      font-weight: 500;
       text-decoration: none;
-      font-size: 0.85rem;
+    }
+
+    .links a.secondary-link {
+      color: var(--text-muted);
+      text-decoration: none;
     }
 
     .links a:hover {
@@ -151,7 +177,8 @@
     .loading, .error {
       text-align: center;
       color: var(--text-muted);
-      padding: 2rem 0;
+      padding: 3rem 0;
+      grid-column: 1 / -1;
     }
   </style>
 </head>
@@ -159,7 +186,7 @@
   <div class="container">
     <header>
       <h1 id="user-name">chinchinuri</h1>
-      <p id="user-bio">Перелік відкритих проєктів та репозиторіїв</p>
+      <p id="user-bio">Портфоліо та каталог розробок</p>
     </header>
 
     <div class="filters" id="filters">
@@ -167,7 +194,7 @@
     </div>
 
     <main class="grid" id="repos-container">
-      <div class="loading">Завантаження репозиторіїв...</div>
+      <div class="loading">Завантаження проєктів з GitHub...</div>
     </main>
   </div>
 
@@ -183,20 +210,21 @@
           fetch(`https://api.github.com/users/${USERNAME}/repos?sort=updated&per_page=100`)
         ]);
 
-        if (!reposRes.ok) throw new Error('Не вдалося завантажити дані з GitHub');
+        if (!reposRes.ok) throw new Error('Не вдалося отримати репозиторії');
 
         const userData = await userRes.json();
         if (userData.name) document.getElementById('user-name').innerText = userData.name;
         if (userData.bio) document.getElementById('user-bio').innerText = userData.bio;
 
         const data = await reposRes.json();
-        // Відфільтровуємо форки (за бажанням) та сам репозиторій сайту
-        allRepos = data.filter(r => !r.fork && r.name !== `${USERNAME}.github.io`);
+
+        // Фільтруємо: прибираємо сам репозиторій хабу та форки
+        allRepos = data.filter(r => !r.fork && r.name.toLowerCase() !== `${USERNAME.toLowerCase()}.github.io`);
 
         renderFilters();
         renderRepos(allRepos);
       } catch (err) {
-        container.innerHTML = `<div class="error">Помилка завантаження: ${err.message}. Перевірте назву профілю.</div>`;
+        container.innerHTML = `<div class="error">Помилка завантаження: ${err.message}.</div>`;
       }
     }
 
@@ -228,24 +256,33 @@
         return;
       }
 
-      container.innerHTML = repos.map(r => `
-        <div class="card">
-          <div>
-            <h3><a href="${r.html_url}" target="_blank" rel="noopener">${r.name}</a></h3>
-            <p>${r.description ? r.description : 'Опис відсутній'}</p>
-          </div>
-          <div>
-            <div class="meta">
-              ${r.language ? `<span class="lang">● ${r.language}</span>` : ''}
-              ${r.stargazers_count ? `<span>★ ${r.stargazers_count}</span>` : ''}
+      container.innerHTML = repos.map(r => {
+        // Якщо увімкнено GitHub Pages — ведемо на chinchinuri.github.io/[repo], інакше — на код
+        const pagesUrl = r.has_pages ? `https://${USERNAME}.github.io/${r.name}/` : null;
+        const mainUrl = pagesUrl || r.html_url;
+
+        return `
+          <div class="card">
+            <div>
+              <div class="card-header">
+                <h3><a href="${mainUrl}" target="_blank" rel="noopener">${r.name}</a></h3>
+                ${r.has_pages ? '<span class="badge-live">Live</span>' : ''}
+              </div>
+              <p>${r.description ? r.description : 'Опис проєкту відсутній.'}</p>
             </div>
-            <div class="links">
-              <a href="${r.html_url}" target="_blank" rel="noopener">GitHub →</a>
-              ${r.homepage ? `<a href="${r.homepage}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
+            <div>
+              <div class="meta">
+                ${r.language ? `<span class="lang">● ${r.language}</span>` : ''}
+                ${r.stargazers_count ? `<span>★ ${r.stargazers_count}</span>` : ''}
+              </div>
+              <div class="links">
+                ${pagesUrl ? `<a href="${pagesUrl}" target="_blank" rel="noopener" class="primary-link">Переглянути сайт ↗</a>` : ''}
+                <a href="${r.html_url}" target="_blank" rel="noopener" class="secondary-link">Вихідний код →</a>
+              </div>
             </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     loadData();
