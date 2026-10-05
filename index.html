@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chinchinuri — Портфоліо та проєкти</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text-main: #c9d1d9;
+      --text-title: #f0f6fc;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --tag-bg: #1f2937;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding: 2.5rem 1.5rem;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      color: var(--text-title);
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .filters {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-btn {
+      background: var(--card-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.8rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      color: var(--text-title);
+      border-color: var(--accent);
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: #8b949e;
+    }
+
+    .card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .card h3 a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .card h3 a:hover {
+      text-decoration: underline;
+    }
+
+    .card p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      flex-grow: 1;
+      margin-bottom: 1rem;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .lang {
+      font-weight: 500;
+      color: var(--text-title);
+    }
+
+    .links {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+
+    .links a:hover {
+      text-decoration: underline;
+    }
+
+    .loading, .error {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1 id="user-name">chinchinuri</h1>
+      <p id="user-bio">Перелік відкритих проєктів та репозиторіїв</p>
+    </header>
+
+    <div class="filters" id="filters">
+      <button class="filter-btn active" onclick="filterRepos('all')">Усі</button>
+    </div>
+
+    <main class="grid" id="repos-container">
+      <div class="loading">Завантаження репозиторіїв...</div>
+    </main>
+  </div>
+
+  <script>
+    const USERNAME = 'chinchinuri';
+    let allRepos = [];
+
+    async function loadData() {
+      const container = document.getElementById('repos-container');
+      try {
+        const [userRes, reposRes] = await Promise.all([
+          fetch(`https://api.github.com/users/${USERNAME}`),
+          fetch(`https://api.github.com/users/${USERNAME}/repos?sort=updated&per_page=100`)
+        ]);
+
+        if (!reposRes.ok) throw new Error('Не вдалося завантажити дані з GitHub');
+
+        const userData = await userRes.json();
+        if (userData.name) document.getElementById('user-name').innerText = userData.name;
+        if (userData.bio) document.getElementById('user-bio').innerText = userData.bio;
+
+        const data = await reposRes.json();
+        // Відфільтровуємо форки (за бажанням) та сам репозиторій сайту
+        allRepos = data.filter(r => !r.fork && r.name !== `${USERNAME}.github.io`);
+
+        renderFilters();
+        renderRepos(allRepos);
+      } catch (err) {
+        container.innerHTML = `<div class="error">Помилка завантаження: ${err.message}. Перевірте назву профілю.</div>`;
+      }
+    }
+
+    function renderFilters() {
+      const languages = [...new Set(allRepos.map(r => r.language).filter(Boolean))];
+      const filtersEl = document.getElementById('filters');
+      languages.forEach(lang => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn';
+        btn.innerText = lang;
+        btn.onclick = () => filterRepos(lang);
+        filtersEl.appendChild(btn);
+      });
+    }
+
+    function filterRepos(lang) {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText === lang || (lang === 'all' && btn.innerText === 'Усі'));
+      });
+
+      const filtered = lang === 'all' ? allRepos : allRepos.filter(r => r.language === lang);
+      renderRepos(filtered);
+    }
+
+    function renderRepos(repos) {
+      const container = document.getElementById('repos-container');
+      if (repos.length === 0) {
+        container.innerHTML = '<div class="loading">Репозиторіїв не знайдено.</div>';
+        return;
+      }
+
+      container.innerHTML = repos.map(r => `
+        <div class="card">
+          <div>
+            <h3><a href="${r.html_url}" target="_blank" rel="noopener">${r.name}</a></h3>
+            <p>${r.description ? r.description : 'Опис відсутній'}</p>
+          </div>
+          <div>
+            <div class="meta">
+              ${r.language ? `<span class="lang">● ${r.language}</span>` : ''}
+              ${r.stargazers_count ? `<span>★ ${r.stargazers_count}</span>` : ''}
+            </div>
+            <div class="links">
+              <a href="${r.html_url}" target="_blank" rel="noopener">GitHub →</a>
+              ${r.homepage ? `<a href="${r.homepage}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
